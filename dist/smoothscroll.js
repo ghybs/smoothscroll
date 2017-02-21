@@ -1,5 +1,5 @@
 /*
- * smoothscroll polyfill - v0.3.3
+ * smoothscroll polyfill - v0.3.4
  * https://iamdustan.github.io/smoothscroll
  * 2016 (c) Dustan Kasten, Jeremias Menichelli - MIT License
  */
@@ -71,10 +71,12 @@
      */
     function shouldBailOut(x) {
       if (typeof x !== 'object'
+            || x === null
             || x.behavior === undefined
             || x.behavior === 'auto'
             || x.behavior === 'instant') {
-        // first arg not an object, or behavior is auto, instant or undefined
+        // first arg not an object/null
+        // or behavior is auto, instant or undefined
         return true;
       }
 
@@ -95,11 +97,23 @@
      * @returns {Node} el
      */
     function findScrollableParent(el) {
+      var isBody;
+      var hasScrollableSpace;
+      var hasVisibleOverflow;
+
       do {
         el = el.parentNode;
-      } while (el !== d.body
-              && !(el.clientHeight < el.scrollHeight
-              || el.clientWidth < el.scrollWidth));
+
+        // set condition variables
+        isBody = el === d.body;
+        hasScrollableSpace =
+          el.clientHeight < el.scrollHeight ||
+          el.clientWidth < el.scrollWidth;
+        hasVisibleOverflow =
+          w.getComputedStyle(el, null).overflow === 'visible';
+      } while (!isBody && !(hasScrollableSpace && !hasVisibleOverflow));
+
+      isBody = hasScrollableSpace = hasVisibleOverflow = null;
 
       return el;
     }
@@ -226,6 +240,23 @@
         d.body,
         ~~arguments[0].left + (w.scrollX || w.pageXOffset),
         ~~arguments[0].top + (w.scrollY || w.pageYOffset)
+      );
+    };
+
+    // Element.prototype.scrollBy
+    Element.prototype.scrollBy = function() {
+      // avoid smooth behavior if not required
+      if (shouldBailOut(arguments[0])) {
+        original.scrollIntoView.call(this, arguments[0] || true);
+        return;
+      }
+
+      // LET THE SMOOTHNESS BEGIN!
+      smoothScroll.call(
+        this,
+        this,
+        this.scrollLeft + arguments[0].left,
+        this.scrollTop + arguments[0].top
       );
     };
 
